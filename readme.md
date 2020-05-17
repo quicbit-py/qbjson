@@ -1,12 +1,18 @@
 # qb-json-next
 
-A python 2 implementation of [qb-json-next](https://github.com/quicbit-js/qb-json-next). Please refer to
+A python 3 implementation of [qb-json-next](https://github.com/quicbit-js/qb-json-next). Please refer to
 that documentation for more detail.
 
-While this is the same logic as the nodejs version, the nodejs version is super-quick at ~300 MB per second
-and C version is about 1 GB per second! 
+While this is the same logic as the nodejs version that parses at almost 300 MB per second, common
+python (CPython 3.7.7) will parse the same files at only 1/100th of that rate (2.5 MB per second).
 
-while this parser has unremarkable performance of 2 MB per second - pretty standard unoptimized processing speed.
+However, PyPy runs a respectable 100 MB per second, so for fast json scanning in pure python, this 
+is the recommended route.
 
-There is nothing terribly amiss with the python implementation and performance is probably in line
-with other python parsers (?). Feedback on how this tokenizer can be made fast in python is welcome.
+C scanning parses at 800 GB per second on my 2014 macbook pro, so for maximum speed scanning JSON, that would
+the way to go, but it isn't as mature or featured as the nodejs version.
+ 
+The reasons for the performance discrepancies have to do with the highly optimized iteration of bytes. Boxing every
+byte is relatively very high cost to all the rest of the code that uses integer comparisons and switch
+statements in NodeJS. Just the cost of checking on each byte in python is a significant hit even 
+when using bytearray.
