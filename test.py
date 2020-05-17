@@ -35,8 +35,11 @@ def parse(s):
 
     print('done')
 
-fname = '../../../dev/json-samples/cache_150mb.json'
-# fname = '../../../dev/json-samples/batters_obj.json'
-# fname = 'blockchain-unconfirmed.json'
-with open(fname, mode='rb') as f:
-    parse(f.read())
+from array import array
+
+# path = '../../../dev/json-samples/cache_150mb.json'
+path = '../../../dev/json-samples/batters_obj.json'
+# path = 'blockchain-unconfirmed.json'
+with open(path, mode='rb') as f:
+    data = array('B', f.read())
+    parse(data)

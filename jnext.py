@@ -158,7 +158,9 @@ def skip_bytes(src, off, lim, bsrc):
         i += 1
     return i + off if i == len(bsrc) else -(i + off)
 
-
+MASK = bytearray(256)
+MASK[34] = 1
+MASK[92] = 1
 # noinspection PyShadowingNames
 # Return the index of the next unescaped double-quote.
 def skip_str(src, off, lim):
@@ -180,15 +182,16 @@ def skip_str(src, off, lim):
     6
     """
     i = off
+    mask = MASK
     while i < lim:
-        if src[i] == 34:
+        if mask[src[i]] == 0:
+            i += 1
+        elif src[i] == 34:
             return i + 1
         elif src[i] == 92:
             if i == lim - 1:
                 return -lim
             i += 2
-        else:
-            i += 1
     return -lim
 
 
@@ -225,28 +228,6 @@ def jnext(ps, opt=None):
         ps.tok = ps.src[ps.vlim]
         ps.vlim += 1
 
-        if ps.tok == 10:
-            ps.lineoff = ps.soff + ps.vlim
-            ps.line += 1
-            continue
-
-        if ps.tok == 13:
-            ps.lineoff = ps.soff + ps.vlim
-            continue
-
-        if ps.tok == 8 or ps.tok == 9 or ps.tok == 12 or ps.tok == 32:  # other white-space
-            continue
-
-        # ,    COMMA
-        # :    COLON
-        if ps.tok == 44 or ps.tok == 58:
-            pos1 = POS_MAP[ps.pos | ps.tok]
-            if pos1 == 0:
-                ps.voff = ps.vlim - 1
-                return handle_unexp(ps, opt)
-            ps.pos = pos1
-            continue
-
         # "    QUOTE
         if ps.tok == 34:
             ps.tok = 115  # s for string
@@ -273,32 +254,15 @@ def jnext(ps, opt=None):
                 else:
                     return handle_neg(ps, opt)
 
-        # f and t   false
-        if ps.tok == 102 or ps.tok == 110 or ps.tok == 116:
-            ps.vlim = skip_bytes(ps.src, ps.vlim, ps.lim, TOK_BYTES[ps.tok])
+        # ,    COMMA
+        # :    COLON
+        if ps.tok == 44 or ps.tok == 58:
             pos1 = POS_MAP[ps.pos | ps.tok]
             if pos1 == 0:
+                ps.voff = ps.vlim - 1
                 return handle_unexp(ps, opt)
-            if ps.vlim > 0:
-                ps.pos = pos1
-                ps.vcount += 1
-                return ps.tok
-            else:
-                return handle_neg(ps, opt)
-
-        # digits 0-9 and '-'
-        if (48 <= ps.tok <= 57) or ps.tok == 45:
-            ps.tok = 100  # d for decimal
-            ps.vlim = skip_dec(ps.src, ps.vlim, ps.lim)
-            pos1 = POS_MAP[ps.pos | ps.tok]
-            if pos1 == 0:
-                return handle_unexp(ps, opt)
-            if ps.vlim > 0:
-                ps.pos = pos1
-                ps.vcount += 1
-                return ps.tok
-            else:
-                return handle_neg(ps, opt)
+            ps.pos = pos1
+            continue
 
         # [    ARRAY START  { OBJECT START
         if ps.tok == 91 or ps.tok == 123:
@@ -326,6 +290,45 @@ def jnext(ps, opt=None):
             ps.pos = POS_O_AV if len(ps.stack) and ps.stack[len(ps.stack) - 1] == 123 else POS_A_AV
             ps.vcount += 1
             return ps.tok
+
+        if ps.tok == 10:
+            ps.lineoff = ps.soff + ps.vlim
+            ps.line += 1
+            continue
+
+        if ps.tok == 13:
+            ps.lineoff = ps.soff + ps.vlim
+            continue
+
+        if ps.tok == 8 or ps.tok == 9 or ps.tok == 12 or ps.tok == 32:  # other white-space
+            continue
+
+        # f and t   false
+        if ps.tok == 102 or ps.tok == 110 or ps.tok == 116:
+            ps.vlim = skip_bytes(ps.src, ps.vlim, ps.lim, TOK_BYTES[ps.tok])
+            pos1 = POS_MAP[ps.pos | ps.tok]
+            if pos1 == 0:
+                return handle_unexp(ps, opt)
+            if ps.vlim > 0:
+                ps.pos = pos1
+                ps.vcount += 1
+                return ps.tok
+            else:
+                return handle_neg(ps, opt)
+
+        # digits 0-9 and '-'
+        if (48 <= ps.tok <= 57) or ps.tok == 45:
+            ps.tok = 100  # d for decimal
+            ps.vlim = skip_dec(ps.src, ps.vlim, ps.lim)
+            pos1 = POS_MAP[ps.pos | ps.tok]
+            if pos1 == 0:
+                return handle_unexp(ps, opt)
+            if ps.vlim > 0:
+                ps.pos = pos1
+                ps.vcount += 1
+                return ps.tok
+            else:
+                return handle_neg(ps, opt)
 
         ps.vlim -= 1
         ps.ecode = ECODE_BAD_VALUE
@@ -407,7 +410,7 @@ def tokstr(ps, detail=False):
 
 class ParseState(object):
     def __init__(self, src, off=0, lim=-1):
-        self._src = src      # resets soff and lim
+        self.src = src
         self.soff = off
         self.lim = lim if lim > -1 else len(src)
         self.koff = 0
@@ -424,19 +427,12 @@ class ParseState(object):
         self.next_src = None
 
     def setsrc(self, v):
-        self._src = v
+        self.src = v
         self.soff = 0
         self.lim = len(v)
 
-    def getsrc(self): return self._src
-
-    def delsrc(self): del self._src
-
     def __str__(self):
         return str(self.__dict__)
-
-    src = property(getsrc, setsrc, delsrc, 'The source string to be parsed')
-
 
 def new_ps(src, off=0, lim=-1):
     return ParseState(src, off, lim)
