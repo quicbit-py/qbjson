@@ -223,15 +223,33 @@ def jnext(ps, opt=None):
         return 0
 
     ps.koff = ps.klim = ps.voff = ps.vlim
+    src = ps.src
     while ps.vlim < ps.lim:
         ps.voff = ps.vlim
-        ps.tok = ps.src[ps.vlim]
+        ps.tok = src[ps.vlim]
         ps.vlim += 1
 
         # "    QUOTE
         if ps.tok == 34:
             ps.tok = 115  # s for string
-            ps.vlim = skip_str(ps.src, ps.vlim, ps.lim)
+
+            mask = MASK
+            i = ps.vlim
+            lim = ps.lim
+            while i < lim:
+                if mask[src[i]] == 0:
+                    i += 1
+                elif src[i] == 34:
+                    ps.vlim = i + 1
+                    break
+                elif src[i] == 92:
+                    if i == lim - 1:
+                        ps.vlim = -i
+                        break
+                    i += 2
+            if i == lim:
+                ps.lim = -i
+
             pos1 = POS_MAP[ps.pos | ps.tok]
             if pos1 == 0:
                 return handle_unexp(ps, opt)
@@ -305,7 +323,7 @@ def jnext(ps, opt=None):
 
         # f and t   false
         if ps.tok == 102 or ps.tok == 110 or ps.tok == 116:
-            ps.vlim = skip_bytes(ps.src, ps.vlim, ps.lim, TOK_BYTES[ps.tok])
+            ps.vlim = skip_bytes(src, ps.vlim, ps.lim, TOK_BYTES[ps.tok])
             pos1 = POS_MAP[ps.pos | ps.tok]
             if pos1 == 0:
                 return handle_unexp(ps, opt)
@@ -319,7 +337,7 @@ def jnext(ps, opt=None):
         # digits 0-9 and '-'
         if (48 <= ps.tok <= 57) or ps.tok == 45:
             ps.tok = 100  # d for decimal
-            ps.vlim = skip_dec(ps.src, ps.vlim, ps.lim)
+            ps.vlim = skip_dec(src, ps.vlim, ps.lim)
             pos1 = POS_MAP[ps.pos | ps.tok]
             if pos1 == 0:
                 return handle_unexp(ps, opt)
