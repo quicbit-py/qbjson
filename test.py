@@ -20,19 +20,23 @@ import jnext
 
 
 def parse(s):
-    print 'started'
+    print('started')
     ps = jnext.new_ps(s)
     i = 0
     while 1:
         i += 1
-        if i % 100000 == 0:
-            print 'iter ' + str(i) + '    ' + jnext.tokstr(ps)
+        # if i % 100000 == 0:
+        #     print('iter', i, '   ', jnext.tokstr(ps))
         t = jnext.jnext(ps)
-        if not t:
+        # print('iter', i, '   ', jnext.tokstr(ps))
+        # print(t)
+        if t == 0:
             break
-        # print jnext.tokstr(ps)
-    print 'done'
 
+    print('done')
 
-with open('../../../dev/json-samples/cache_150mb.json', mode='rb') as f:
+fname = '../../../dev/json-samples/cache_150mb.json'
+# fname = '../../../dev/json-samples/batters_obj.json'
+# fname = 'blockchain-unconfirmed.json'
+with open(fname, mode='rb') as f:
     parse(f.read())
